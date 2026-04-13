@@ -13,4 +13,16 @@ from app.services.util import (
     date_lower_than_today_error, room_not_found_error
 )
 
+# --- PARTE 2: CLASE ADICIONAL ---
+@dataclass
+class HotelService:
+    """
+    Representa servicios extra (Spa, Minibar, etc.).
+    Se usa dataclass por ser una entidad principalmente de datos.
+    """
+    name: str
+    price: float
+    description: str = "Sin descripción"
 
+    def __str__(self) -> str:
+        return f"{self.name} (${self.price})"
