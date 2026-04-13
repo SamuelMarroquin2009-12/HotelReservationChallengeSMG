@@ -126,3 +126,117 @@ class Room:
             else:
                 self.availability[current] = reservation_id
             current += timedelta(days=1)
+
+
+class Hotel:
+    def __init__(self):
+        self.rooms: dict[int, Room] = {}
+        self.reservations: dict[str, Reservation] = {}
+
+    def add_room(self, number: int, type_: str, price_per_night: float):
+        if number in self.rooms:
+            room_already_exists_error()
+        else:
+            self.rooms[number] = Room(number, type_, price_per_night)
+
+    def make_reservation(self, guest_name: str, description: str,
+                         room_number: int, check_in: date, check_out: date) -> str:
+        if check_in < datetime.now().date():
+            date_lower_than_today_error()
+        if room_number not in self.rooms:
+            room_not_found_error()
+
+        reserva = Reservation(guest_name, description, check_in, check_out)
+        self.rooms[room_number].book(reserva.id, check_in, check_out)
+        self.reservations[reserva.id] = reserva
+        return reserva.id
+
+    def add_guest(self, reservation_id: str, name: str, email: str, type_: str):
+        reserva = self.reservations.get(reservation_id)
+        if not reserva:
+            reservation_not_found_error()
+        else:
+            reserva.add_guest(name, email, type_)
+
+    def find_available_rooms(self, check_in: date, check_out: date) -> list[int]:
+        disponibles = []
+        for num, room in self.rooms.items():
+            libre = True
+            curr = check_in
+            while curr < check_out:
+                if room.availability.get(curr) is not None:
+                    libre = False
+                    break
+                curr += timedelta(days=1)
+            if libre:
+                disponibles.append(num)
+        return disponibles
+
+    # --- Integración HotelService ---
+    def add_service_to_reservation(self, reservation_id: str, service_name: str, price: float):
+        reserva = self.reservations.get(reservation_id)
+        if not reserva:
+            reservation_not_found_error()
+        else:
+            servicio = HotelService(service_name, price)
+            reserva.add_service(servicio)
+
+    # Métodos proporcionados por el ejercicio para Hotel
+    def update_reservation(self, reservation_id: str, guest_name: str, description: str,
+                           room_number: int, check_in: date, check_out: date):
+        reservation = self.reservations.get(reservation_id)
+        if not reservation:
+            reservation_not_found_error()
+        current_room_number = None
+        for number, room in self.rooms.items():
+            if reservation_id in room.availability.values():
+                current_room_number = number
+                break
+        is_new_room = False
+        if current_room_number != room_number:
+            self.cancel_reservation(reservation_id)
+            reservation = Reservation(guest_name=guest_name, description=description,
+                                      check_in=check_in, check_out=check_out)
+            reservation.id = reservation_id
+            self.reservations[reservation_id] = reservation
+            is_new_room = True
+            if room_number not in self.rooms:
+                room_not_found_error()
+            self.rooms[room_number].book(reservation_id, check_in, check_out)
+        else:
+            reservation.guest_name = guest_name
+            reservation.description = description
+            reservation.check_in = check_in
+            reservation.check_out = check_out
+        if not is_new_room and current_room_number is not None:
+            self.rooms[current_room_number].update_booking(reservation_id, check_in, check_out)
+
+    def cancel_reservation(self, reservation_id: str):
+        if reservation_id not in self.reservations:
+            reservation_not_found_error()
+        self.reservations.pop(reservation_id)
+        for room in self.rooms.values():
+            if reservation_id in room.availability.values():
+                room.release(reservation_id)
+                break
+
+    def find_reservations(self, start_date: date, end_date: date) -> dict[date, list[Reservation]]:
+        reservations: dict[date, list[Reservation]] = {}
+        for reservation in self.reservations.values():
+            if start_date <= reservation.check_in <= end_date:
+                if reservation.check_in not in reservations:
+                    reservations[reservation.check_in] = []
+                reservations[reservation.check_in].append(reservation)
+        return reservations
+
+    def delete_guest(self, reservation_id: str, guest_index: int):
+        reservation = self.reservations.get(reservation_id)
+        if not reservation:
+            reservation_not_found_error()
+        reservation.delete_guest(guest_index)
+
+    def list_guests(self, reservation_id: str) -> list[Guest]:
+        reservation = self.reservations.get(reservation_id)
+        if not reservation:
+            reservation_not_found_error()
+        return reservation.guests
