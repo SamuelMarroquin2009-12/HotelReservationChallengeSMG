@@ -37,3 +37,40 @@ class Guest:
 
     def __str__(self) -> str:
         return f"Guest {self.name} ({self.email}) of type {self.type_}"
+
+
+@dataclass
+class Reservation:
+    # Atributos obligatorios PRIMERO
+    guest_name: str
+    description: str
+    check_in: date
+    check_out: date
+
+    # Atributos con default_factory o init=False SIEMPRE al final
+    guests: list[Guest] = field(default_factory=list, init=False)
+    services: list[HotelService] = field(default_factory=list, init=False)
+    id: str = field(default_factory=generate_unique_id)
+
+    def add_guest(self, name: str, email: str, type_: str = "regular"):
+        nuevo_huesped = Guest(name, email, type_)
+        self.guests.append(nuevo_huesped)
+
+    def delete_guest(self, guest_index: int):
+        if 0 <= guest_index < len(self.guests):
+            self.guests.pop(guest_index)
+        else:
+            guest_not_found_error()
+
+    def add_service(self, service: HotelService):
+        """Añade un servicio consumido a esta reserva."""
+        self.services.append(service)
+
+    def __len__(self) -> int:
+        return (self.check_out - self.check_in).days
+
+    def __str__(self) -> str:
+        return (f"ID: {self.id}\n"
+                f"Guest: {self.guest_name}\n"
+                f"Description: {self.description}\n"
+                f"Dates: {self.check_in} - {self.check_out}")
